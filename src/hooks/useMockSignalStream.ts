@@ -4,7 +4,7 @@ import type { SignalModule, FlaggedEvent } from '../types';
 
 // Constants for simulation
 const TICK_INTERVAL = 1500; // 1.5 seconds
-const MODULES: SignalModule[] = ['gaze', 'lipSync', 'latency', 'prosody', 'environment'];
+const MODULES: SignalModule[] = ['gaze', 'lipSync', 'latency', 'prosody'];
 
 const MODULE_WEIGHTS: Record<SignalModule, number> = {
   gaze: 0.25,
@@ -118,6 +118,10 @@ export function useMockSignalStream() {
       // Accumulate composite score
       compositeScore += finalScore * MODULE_WEIGHTS[module];
     });
+
+    // Factor in real environment score from store
+    const envScore = useSessionStore.getState().signals.environment.score;
+    compositeScore += envScore * MODULE_WEIGHTS['environment'];
 
     // Update Integrity Index
     updateIntegrityIndex(compositeScore);

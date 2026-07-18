@@ -9,6 +9,7 @@ import type {
   SessionSummary,
 } from '../types';
 import { SIGNAL_MODULES } from '../types';
+import { sessionClock } from '../lib/sessionClock';
 
 interface SessionState {
   candidateName: string;
@@ -74,6 +75,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   
   setPhase: (phase) => {
     set({ phase });
+    if (phase === 'calibration') {
+      sessionClock.start();
+    }
     if (phase === 'monitoring' && !get().startTime) {
       set({ startTime: Date.now() });
     }
@@ -153,5 +157,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     });
   },
   
-  resetSession: () => set({ ...initialState, signals: getInitialSignals() })
+  resetSession: () => {
+    sessionClock.reset();
+    set({ ...initialState, signals: getInitialSignals() });
+  }
 }));
