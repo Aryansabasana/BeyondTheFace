@@ -98,6 +98,17 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // 3. Save Completed Session Report
+app.get('/api/sessions', authMiddleware, async (req, res) => {
+  try {
+    const sessions = await Session.find({ userId: req.user.userId }).sort({ createdAt: -1 });
+    res.status(200).json({ sessions });
+  } catch (err) {
+    console.error('Error fetching sessions:', err);
+    res.status(500).json({ message: 'Failed to fetch sessions from database' });
+  }
+});
+
+// 3.1 Save Completed Session Report
 app.post('/api/sessions/save', authMiddleware, async (req, res) => {
   const { 
     candidateName, 

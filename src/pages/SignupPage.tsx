@@ -43,7 +43,7 @@ export function SignupPage() {
       }
 
       login(data.user, data.token);
-      navigate('/setup');
+      navigate('/home');
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Something went wrong');

@@ -30,23 +30,56 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="fixed top-0 w-full h-12 px-4 flex items-center justify-between z-50 
-                         bg-surface-900/80 backdrop-blur-sm border-b border-surface-750">
-        <div className="flex items-center gap-4">
-          <div className="font-semibold tracking-tight text-lg cursor-pointer" onClick={() => navigate('/')}>
-            <span className="text-accent-400">Beyond</span>
+      <header className="fixed top-0 w-full h-14 px-6 flex items-center justify-between z-50 
+                         bg-surface-900/80 backdrop-blur-md border-b border-surface-750/50 shadow-sm">
+        <div className="flex items-center gap-8">
+          <div className="font-bold tracking-tight text-xl cursor-pointer flex items-center gap-2" onClick={() => navigate(token ? '/home' : '/')}>
+            <span className="text-teal-400">Beyond</span>
             <span className="text-white">TheFace</span>
           </div>
+          
+          {/* Navigation Links for Authenticated Users */}
+          {token && (
+            <nav className="hidden md:flex items-center gap-1">
+              <button
+                onClick={() => navigate('/home')}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  location.pathname === '/home' 
+                    ? 'bg-surface-800 text-white' 
+                    : 'text-surface-400 hover:text-white hover:bg-surface-800/50'
+                }`}
+              >
+                My Sessions
+              </button>
+              <button
+                onClick={() => navigate('/setup')}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  ['/setup', '/calibration', '/dashboard'].includes(location.pathname)
+                    ? 'bg-surface-800 text-white' 
+                    : 'text-surface-400 hover:text-white hover:bg-surface-800/50'
+                }`}
+              >
+                Active Session
+              </button>
+            </nav>
+          )}
         </div>
 
         <div className="flex items-center gap-4">
           {token && (
-            <button 
-              onClick={handleLogout}
-              className="text-xs text-surface-400 hover:text-white transition-colors"
-            >
-              Sign Out
-            </button>
+            <div className="flex items-center gap-4 border-r border-surface-800 pr-4">
+              <button 
+                onClick={handleLogout}
+                className="text-sm font-medium text-surface-400 hover:text-signal-red transition-colors flex items-center gap-1.5"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                Sign Out
+              </button>
+            </div>
           )}
 
           <button 

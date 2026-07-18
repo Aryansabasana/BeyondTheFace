@@ -11,10 +11,11 @@ const PHASE_ROUTES: Record<string, string> = {
 interface RouteGuardProps {
   requiredPhase?: 'setup' | 'calibration' | 'monitoring' | 'report';
   isPublicAuthRoute?: boolean;
+  requireAuthOnly?: boolean;
   children: React.ReactNode;
 }
 
-export function RouteGuard({ requiredPhase, isPublicAuthRoute, children }: RouteGuardProps) {
+export function RouteGuard({ requiredPhase, isPublicAuthRoute, requireAuthOnly, children }: RouteGuardProps) {
   const token = useSessionStore(s => s.token);
   const phase = useSessionStore(s => s.phase);
 
@@ -29,6 +30,11 @@ export function RouteGuard({ requiredPhase, isPublicAuthRoute, children }: Route
   // Private routes require active user login session
   if (!token) {
     return <Navigate to="/login" replace />;
+  }
+
+  // 1.5 Bypass phase checks if only auth is required (e.g., Dashboard Home)
+  if (requireAuthOnly) {
+    return <>{children}</>;
   }
 
   // 2. Setup bypass allows reset

@@ -8,6 +8,7 @@ import { SetupPage } from './pages/SetupPage';
 import { CalibrationPage } from './pages/CalibrationPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ReportPage } from './pages/ReportPage';
+import { HomeDashboardPage } from './pages/HomeDashboardPage';
 
 export default function App() {
   return (
@@ -26,6 +27,13 @@ export default function App() {
           <Route path="/signup" element={
             <RouteGuard isPublicAuthRoute={true}>
               <SignupPage />
+            </RouteGuard>
+          } />
+
+          {/* User Dashboard */}
+          <Route path="/home" element={
+            <RouteGuard requireAuthOnly={true}>
+              <HomeDashboardPage />
             </RouteGuard>
           } />
 
