@@ -19,8 +19,8 @@ export function RouteGuard({ requiredPhase, children }: { requiredPhase: string;
   const currentPhaseIndex = phaseOrder.indexOf(phase);
   const requiredPhaseIndex = phaseOrder.indexOf(requiredPhase);
   
-  if (currentPhaseIndex < requiredPhaseIndex) {
-    // User hasn't reached this phase yet — redirect to their current phase
+  if (currentPhaseIndex !== requiredPhaseIndex) {
+    // Redirect if current phase index is different from the required route's index
     return <Navigate to={PHASE_ROUTES[phase] || '/'} replace />;
   }
   

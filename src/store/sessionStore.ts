@@ -107,9 +107,17 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     integrityHistory: [...state.integrityHistory, { time: state.elapsedSeconds, value }]
   })),
   
-  addFlaggedEvent: (event) => set((state) => ({
-    flaggedEvents: [...state.flaggedEvents, event]
-  })),
+  addFlaggedEvent: (event) => set((state) => {
+    const isDuplicate = state.flaggedEvents.some(
+      (e) => e.module === event.module &&
+             e.message === event.message &&
+             Math.abs(e.timestamp - event.timestamp) <= 5
+    );
+    if (isDuplicate) return {};
+    return {
+      flaggedEvents: [...state.flaggedEvents, event]
+    };
+  }),
   
   setHighlightTime: (time) => set({ highlightTime: time }),
   
@@ -117,7 +125,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   
   computeSessionSummary: () => {
     const state = get();
-    const { signals, integrityHistory, elapsedSeconds, flaggedEvents } = state;
+    const { signals, integrityHistory, flaggedEvents } = state;
     
     const moduleAverages: Partial<Record<SignalModule, number>> = {};
     let totalScoreSum = 0;
@@ -145,7 +153,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       overallScore,
       verdict,
       moduleAverages: moduleAverages as Record<SignalModule, number>,
-      totalDuration: elapsedSeconds,
+      totalDuration: Math.round(sessionClock.getElapsedMs() / 1000),
       totalFlags: flaggedEvents.length,
       integrityHistory: [...integrityHistory],
       flaggedEvents: [...flaggedEvents],

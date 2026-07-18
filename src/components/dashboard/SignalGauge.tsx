@@ -81,13 +81,13 @@ export const SignalGauge: React.FC<SignalGaugeProps> = React.memo(({ label, modu
       <div className="text-sm flex-1 truncate">{label}</div>
       
       <div className={`text-sm font-semibold tabular-nums w-8 text-right ${colorClass}`}>
-        {score}
+        {Math.round(score)}
       </div>
       
       <div className="flex-1 max-w-[120px] bg-surface-700 h-1.5 rounded-full overflow-hidden">
         <div 
           className={`h-full ${barBg} transition-all duration-300`} 
-          style={{ width: `${score}%` }}
+          style={{ width: `${Math.round(score)}%` }}
         />
       </div>
       
