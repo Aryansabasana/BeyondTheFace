@@ -43,24 +43,29 @@ const getStatusIcon = (status: SignalStatus) => {
       return <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
     case 'critical':
       return <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>;
+    case 'stale':
+      return <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
   }
 };
 
 const getStatusColorClass = (status: SignalStatus) => {
   if (status === 'critical') return 'text-signal-red';
   if (status === 'warning') return 'text-signal-amber';
+  if (status === 'stale') return 'text-surface-450';
   return 'text-signal-green';
 };
 
 const getStatusBgClass = (status: SignalStatus) => {
   if (status === 'critical') return 'bg-signal-red/20 text-signal-red';
   if (status === 'warning') return 'bg-signal-amber/20 text-signal-amber';
+  if (status === 'stale') return 'bg-surface-800 text-surface-400 border border-surface-700';
   return 'bg-signal-green/20 text-signal-green';
 };
 
 const getHexColor = (status: SignalStatus) => {
   if (status === 'critical') return '#ef4444';
   if (status === 'warning') return '#f59e0b';
+  if (status === 'stale') return '#64748b';
   return '#22c55e';
 };
 
@@ -73,6 +78,7 @@ export const SignalGauge: React.FC<SignalGaugeProps> = React.memo(({ label, modu
   let barBg = 'bg-signal-green';
   if (status === 'warning') barBg = 'bg-signal-amber';
   if (status === 'critical') barBg = 'bg-signal-red';
+  if (status === 'stale') barBg = 'bg-surface-600';
 
   return (
     <div className="flex items-center gap-3 py-2 border-b border-surface-800 last:border-0">

@@ -2,13 +2,23 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSessionStore } from '../store/sessionStore';
 import { useCameraFeed } from '../hooks/useCameraFeed';
+import { useFrameSampler } from '../hooks/useFrameSampler';
+import { gazeDetector } from '../lib/gazeDetector';
 
 export function CalibrationPage() {
   const navigate = useNavigate();
   const setPhase = useSessionStore(state => state.setPhase);
+  const setGazeBaseline = useSessionStore(state => state.setGazeBaseline);
   const { videoRef, isActive, start } = useCameraFeed();
   
   const [timeLeft, setTimeLeft] = useState(60);
+
+  // Seed gaze points into calibration buffer at 10fps
+  const frameSampler = useFrameSampler(videoRef, 10, 30000, (frame) => {
+    if (videoRef.current) {
+      gazeDetector.processFrame(videoRef.current, frame.sessionTimeMs, null, true);
+    }
+  });
 
   useEffect(() => {
     if (!isActive) {
@@ -17,7 +27,26 @@ export function CalibrationPage() {
   }, [isActive, start]);
 
   useEffect(() => {
+    if (isActive && videoRef.current) {
+      frameSampler.start();
+    }
+    return () => {
+      frameSampler.stop();
+    };
+  }, [isActive, videoRef, frameSampler]);
+
+  useEffect(() => {
     if (timeLeft <= 0) {
+      // Complete calibration and save baseline
+      const baseline = gazeDetector.computeBaseline();
+      if (baseline) {
+        setGazeBaseline(baseline);
+        console.log('Gaze calibration baseline established:', baseline);
+      } else {
+        // Fallback baseline if no points were registered
+        setGazeBaseline({ meanX: 0.5, meanY: 0.5, stdDevX: 0.05, stdDevY: 0.05 });
+      }
+
       setPhase('monitoring');
       navigate('/dashboard');
       return;
@@ -28,11 +57,11 @@ export function CalibrationPage() {
     }, 1000);
 
     return () => clearInterval(timerId);
-  }, [timeLeft, navigate, setPhase]);
+  }, [timeLeft, navigate, setPhase, setGazeBaseline]);
 
   const handleCancel = () => {
     setPhase('setup');
-    navigate('/');
+    navigate('/setup');
   };
 
   const elapsed = 60 - timeLeft;
@@ -59,7 +88,7 @@ export function CalibrationPage() {
         className="absolute inset-0 w-full h-full object-cover opacity-30"
       />
       
-      {/* Overlay to darken background further if needed */}
+      {/* Overlay to darken background further */}
       <div className="absolute inset-0 bg-surface-950/40 backdrop-blur-sm" />
 
       {/* Main Overlay Card */}

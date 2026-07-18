@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSessionStore } from '../store/sessionStore';
 import { useCameraFeed } from '../hooks/useCameraFeed';
 import { useMockSignalStream } from '../hooks/useMockSignalStream';
@@ -7,8 +7,11 @@ import { useMediaRecorderChunks } from '../hooks/useMediaRecorderChunks';
 import { useFrameSampler } from '../hooks/useFrameSampler';
 import { useAudioAnalyser } from '../hooks/useAudioAnalyser';
 import { useEnvironmentProbe } from '../hooks/useEnvironmentProbe';
+import { useClipAnalysis } from '../hooks/useClipAnalysis';
 import { syncDebugger } from '../lib/syncDebugger';
 import { sessionClock } from '../lib/sessionClock';
+import { gazeDetector } from '../lib/gazeDetector';
+import { latencyProfiler } from '../lib/latencyProfiler';
 import { SessionInfoBar } from '../components/dashboard/SessionInfoBar';
 import { VideoPanel } from '../components/dashboard/VideoPanel';
 import { IntegrityChart } from '../components/dashboard/IntegrityChart';
@@ -17,6 +20,9 @@ import { FlaggedEventsLog } from '../components/dashboard/FlaggedEventsLog';
 
 export function DashboardPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isMockMode = searchParams.get('mock') === 'true';
+
   const { 
     videoRef, 
     stream,
@@ -34,6 +40,7 @@ export function DashboardPage() {
   const computeSessionSummary = useSessionStore(s => s.computeSessionSummary);
 
   const [showSyncHUD, setShowSyncHUD] = useState(false);
+  const gazeDeviationStartRef = useRef<number | null>(null);
 
   // 1. Initialize recording and sampling hooks
   const { videoChunks, audioChunks, start: startRecorder, stop: stopRecorder } = useMediaRecorderChunks(stream);
@@ -42,12 +49,65 @@ export function DashboardPage() {
   // Renders document/window events and suspicious device checks
   useEnvironmentProbe();
 
+  // Reset profilers and detectors on mount/unmount
+  useEffect(() => {
+    latencyProfiler.reset();
+    gazeDeviationStartRef.current = null;
+    gazeDetector.initialize(); // Trigger lazy-load of MediaPipe vision files
+    return () => {
+      latencyProfiler.reset();
+    };
+  }, []);
+
   // Draw video frames onto offscreen canvas for vision modules
   const frameSampler = useFrameSampler(videoRef, 10, 30000, (frame) => {
+    const now = frame.sessionTimeMs;
     syncDebugger.updateStats({
-      latestFrameSampleTime: frame.sessionTimeMs
+      latestFrameSampleTime: now
     });
+
+    // Run client-side gaze detector (except in mock mode)
+    if (!isMockMode && videoRef.current) {
+      const baseline = useSessionStore.getState().gazeBaseline;
+      const result = gazeDetector.processFrame(videoRef.current, now, baseline, false);
+      
+      // Update landmarks for canvas overlay
+      if (result.landmarks.length > 0) {
+        useSessionStore.getState().setFaceData(result.landmarks, result.gazeVector);
+      }
+
+      // Compute and update gaze scores
+      if (result.zScore !== null) {
+        const score = Math.max(0, Math.min(100, 100 - (result.zScore - 1) * 35));
+        useSessionStore.getState().updateSignal('gaze', score);
+
+        // Check for sustained deviations (> 2.5 std dev for > 800ms)
+        if (result.zScore > 2.5) {
+          if (gazeDeviationStartRef.current === null) {
+            gazeDeviationStartRef.current = now;
+          } else if (now - gazeDeviationStartRef.current > 800) {
+            useSessionStore.getState().addFlaggedEvent({
+              id: `gaze-anomaly-${Date.now()}-${Math.random()}`,
+              timestamp: Math.floor(now / 1000),
+              module: 'gaze',
+              severity: 'warning',
+              message: 'Sustained gaze deviation: candidate looking off-screen'
+            });
+          }
+        } else {
+          gazeDeviationStartRef.current = null;
+        }
+      }
+    }
   });
+
+  // Activate multimodal clip analysis scheduler (sends A/V every 20s to backend)
+  // Only active when not running in mock mode
+  useClipAnalysis(
+    isMockMode ? [] : audioChunks,
+    frameSampler.ringBuffer,
+    20000
+  );
 
   // Toggle HUD display from keyboard shortcuts
   useEffect(() => {
@@ -78,11 +138,31 @@ export function DashboardPage() {
   const latestRms = audioAnalyser.rms;
   useEffect(() => {
     if (latestRms > 0) {
+      const now = sessionClock.getElapsedMs();
       syncDebugger.updateStats({
-        latestAudioReadingTime: sessionClock.getElapsedMs()
+        latestAudioReadingTime: now
       });
+
+      // Analyze pause latency profile client-side (except in mock mode)
+      if (!isMockMode) {
+        const { pauseDurationMs, flagged } = latencyProfiler.processReading(latestRms, now);
+        if (pauseDurationMs !== null) {
+          if (flagged) {
+            useSessionStore.getState().updateSignal('latency', 45);
+            useSessionStore.getState().addFlaggedEvent({
+              id: `latency-anomaly-${Date.now()}-${Math.random()}`,
+              timestamp: Math.floor(now / 1000),
+              module: 'latency',
+              severity: 'warning',
+              message: `Delayed answer profile: candidate paused for ${(pauseDurationMs / 1000).toFixed(1)}s before replying`
+            });
+          } else {
+            useSessionStore.getState().updateSignal('latency', 98);
+          }
+        }
+      }
     }
-  }, [latestRms]);
+  }, [latestRms, isMockMode]);
 
   // Coordinate capture start / stop
   useEffect(() => {
@@ -90,13 +170,17 @@ export function DashboardPage() {
       startCamera();
     }
     
-    startMockStream();
+    if (isMockMode) {
+      startMockStream();
+    }
     
     return () => {
-      stopMockStream();
+      if (isMockMode) {
+        stopMockStream();
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isMockMode]);
 
   // Frame sampler and recorder start once camera stream is ready
   useEffect(() => {
@@ -114,14 +198,16 @@ export function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameraActive, stream]);
 
-  const handleEndSession = () => {
-    stopMockStream();
-    computeSessionSummary();
+  const handleEndSession = async () => {
+    if (isMockMode) {
+      stopMockStream();
+    }
+    await computeSessionSummary();
     navigate('/report');
   };
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-48px)] animate-fade-in bg-surface-950">
+    <div className="flex flex-col min-h-[calc(100vh-48px)] animate-fade-in bg-surface-950 text-white">
       {/* Top Bar */}
       <SessionInfoBar />
       
@@ -160,7 +246,7 @@ export function DashboardPage() {
             <span className={`w-2 h-2 rounded-full ${frameSampler.stats.getDropped() > 20 ? 'bg-signal-red' : 'bg-signal-green'} animate-pulse`}></span>
             <span className="text-surface-300">Capture Health:</span>
             <span className="font-semibold text-white">
-              {videoChunks.length > 0 && audioChunks.length > 0 ? 'Optimal' : 'Connecting'}
+              {isMockMode ? 'Simulating' : (videoChunks.length > 0 && audioChunks.length > 0 ? 'Optimal' : 'Connecting')}
             </span>
           </div>
         </div>

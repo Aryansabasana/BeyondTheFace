@@ -11,7 +11,19 @@ import type {
 import { SIGNAL_MODULES } from '../types';
 import { sessionClock } from '../lib/sessionClock';
 
+export interface GazeBaseline {
+  meanX: number;
+  meanY: number;
+  stdDevX: number;
+  stdDevY: number;
+}
+
 interface SessionState {
+  // Auth State
+  user: { name: string; email: string } | null;
+  token: string | null;
+  
+  // Monitoring State
   candidateName: string;
   sessionId: string;
   phase: SessionPhase;
@@ -23,17 +35,27 @@ interface SessionState {
   flaggedEvents: FlaggedEvent[];
   highlightTime: number | null;
   sessionSummary: SessionSummary | null;
+
+  // Gaze Calibration & Mesh Mapping
+  gazeBaseline: GazeBaseline | null;
+  faceLandmarks: { x: number; y: number }[];
+  gazeVector: { x: number; y: number } | null;
   
   // Actions
+  login: (user: { name: string; email: string }, token: string) => void;
+  logout: () => void;
   setCandidate: (name: string, sessionId: string) => void;
   setPhase: (phase: SessionPhase) => void;
   updateSignal: (module: SignalModule, score: number) => void;
+  setSignalStale: (module: SignalModule) => void;
   updateIntegrityIndex: (value: number) => void;
   addFlaggedEvent: (event: FlaggedEvent) => void;
   setHighlightTime: (time: number | null) => void;
   incrementElapsed: () => void;
-  computeSessionSummary: () => void;
+  computeSessionSummary: () => Promise<void>;
   resetSession: () => void;
+  setGazeBaseline: (baseline: GazeBaseline) => void;
+  setFaceData: (landmarks: { x: number; y: number }[], gazeVector: { x: number; y: number } | null) => void;
 }
 
 const getInitialSignals = (): Record<SignalModule, SignalState> => {
@@ -54,7 +76,12 @@ const getStatusForScore = (score: number): SignalStatus => {
   return 'critical';
 };
 
+const savedUser = typeof window !== 'undefined' ? localStorage.getItem('btf-user') : null;
+const savedToken = typeof window !== 'undefined' ? localStorage.getItem('btf-token') : null;
+
 const initialState = {
+  user: savedUser ? JSON.parse(savedUser) : null,
+  token: savedToken,
   candidateName: '',
   sessionId: '',
   phase: 'setup' as SessionPhase,
@@ -66,10 +93,25 @@ const initialState = {
   flaggedEvents: [],
   highlightTime: null,
   sessionSummary: null,
+  gazeBaseline: null,
+  faceLandmarks: [],
+  gazeVector: null,
 };
 
 export const useSessionStore = create<SessionState>((set, get) => ({
   ...initialState,
+
+  login: (user, token) => {
+    localStorage.setItem('btf-user', JSON.stringify(user));
+    localStorage.setItem('btf-token', token);
+    set({ user, token });
+  },
+
+  logout: () => {
+    localStorage.removeItem('btf-user');
+    localStorage.removeItem('btf-token');
+    set({ user: null, token: null });
+  },
   
   setCandidate: (name, sessionId) => set({ candidateName: name, sessionId }),
   
@@ -101,6 +143,16 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       }
     };
   }),
+
+  setSignalStale: (module) => set((state) => ({
+    signals: {
+      ...state.signals,
+      [module]: {
+        ...state.signals[module],
+        status: 'stale'
+      }
+    }
+  })),
   
   updateIntegrityIndex: (value) => set((state) => ({
     integrityIndex: value,
@@ -123,7 +175,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   
   incrementElapsed: () => set((state) => ({ elapsedSeconds: state.elapsedSeconds + 1 })),
   
-  computeSessionSummary: () => {
+  computeSessionSummary: async () => {
     const state = get();
     const { signals, integrityHistory, flaggedEvents } = state;
     
@@ -163,10 +215,55 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       sessionSummary,
       phase: 'report'
     });
+
+    // Archive session report in database if logged in
+    if (state.token) {
+      try {
+        await fetch('http://localhost:5001/api/sessions/save', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${state.token}`
+          },
+          body: JSON.stringify({
+            candidateName: state.candidateName,
+            sessionId: state.sessionId,
+            overallScore: sessionSummary.overallScore,
+            verdict: sessionSummary.verdict,
+            moduleAverages: sessionSummary.moduleAverages,
+            totalDuration: sessionSummary.totalDuration,
+            totalFlags: sessionSummary.totalFlags,
+            flaggedEvents: sessionSummary.flaggedEvents
+          })
+        });
+        console.log('Session archived successfully in database.');
+      } catch (err) {
+        console.error('Failed to sync session report with database:', err);
+      }
+    }
   },
   
   resetSession: () => {
     sessionClock.reset();
-    set({ ...initialState, signals: getInitialSignals() });
-  }
+    set({ 
+      candidateName: '',
+      sessionId: '',
+      phase: 'setup',
+      startTime: null,
+      elapsedSeconds: 0,
+      integrityIndex: 95,
+      integrityHistory: [],
+      signals: getInitialSignals(),
+      flaggedEvents: [],
+      highlightTime: null,
+      sessionSummary: null,
+      gazeBaseline: null,
+      faceLandmarks: [],
+      gazeVector: null,
+    });
+  },
+
+  setGazeBaseline: (baseline) => set({ gazeBaseline: baseline }),
+
+  setFaceData: (landmarks, gazeVector) => set({ faceLandmarks: landmarks, gazeVector })
 }));

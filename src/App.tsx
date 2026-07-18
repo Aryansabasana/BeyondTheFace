@@ -1,6 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 import { RouteGuard } from './components/layout/RouteGuard';
+import { LandingPage } from './pages/LandingPage';
+import { LoginPage } from './pages/LoginPage';
+import { SignupPage } from './pages/SignupPage';
 import { SetupPage } from './pages/SetupPage';
 import { CalibrationPage } from './pages/CalibrationPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -11,21 +14,40 @@ export default function App() {
     <BrowserRouter>
       <AppShell>
         <Routes>
-          <Route path="/" element={
+          {/* Public Routes */}
+          <Route path="/" element={<LandingPage />} />
+          
+          <Route path="/login" element={
+            <RouteGuard isPublicAuthRoute={true}>
+              <LoginPage />
+            </RouteGuard>
+          } />
+          
+          <Route path="/signup" element={
+            <RouteGuard isPublicAuthRoute={true}>
+              <SignupPage />
+            </RouteGuard>
+          } />
+
+          {/* Private Session Routes */}
+          <Route path="/setup" element={
             <RouteGuard requiredPhase="setup">
               <SetupPage />
             </RouteGuard>
           } />
+          
           <Route path="/calibration" element={
             <RouteGuard requiredPhase="calibration">
               <CalibrationPage />
             </RouteGuard>
           } />
+          
           <Route path="/dashboard" element={
             <RouteGuard requiredPhase="monitoring">
               <DashboardPage />
             </RouteGuard>
           } />
+          
           <Route path="/report" element={
             <RouteGuard requiredPhase="report">
               <ReportPage />

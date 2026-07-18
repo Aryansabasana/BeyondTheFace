@@ -1,5 +1,5 @@
 export type SignalModule = 'gaze' | 'lipSync' | 'latency' | 'prosody' | 'environment';
-export type SignalStatus = 'normal' | 'warning' | 'critical';
+export type SignalStatus = 'normal' | 'warning' | 'critical' | 'stale';
 export type SessionPhase = 'setup' | 'calibration' | 'monitoring' | 'report';
 export type Verdict = 'Clean' | 'Review Recommended' | 'High Risk';
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useSessionStore } from '../../store/sessionStore';
 import { CameraError } from '../ui/CameraError';
 
 interface VideoPanelProps {
@@ -10,6 +11,8 @@ interface VideoPanelProps {
 
 export const VideoPanel: React.FC<VideoPanelProps> = ({ gazeScore, videoRef, cameraError, onRetry }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const faceLandmarks = useSessionStore((s) => s.faceLandmarks);
+  const gazeVector = useSessionStore((s) => s.gazeVector);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -19,7 +22,7 @@ export const VideoPanel: React.FC<VideoPanelProps> = ({ gazeScore, videoRef, cam
 
     let animationFrameId: number;
     let lastTime = 0;
-    const FPS = 30; // Cap at 30fps for performance
+    const FPS = 30; // Cap at 30fps for CPU stability
     const frameInterval = 1000 / FPS;
 
     const render = (timestamp: number) => {
@@ -31,7 +34,7 @@ export const VideoPanel: React.FC<VideoPanelProps> = ({ gazeScore, videoRef, cam
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Determine jitter and drift based on gaze score
+      // Determine jitter and drift based on gaze score for mock mode fallback
       let jitter = 1;
       let drift = 0;
       if (gazeScore < 50) {
@@ -45,42 +48,73 @@ export const VideoPanel: React.FC<VideoPanelProps> = ({ gazeScore, videoRef, cam
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2;
 
-      // 6 mock facial landmark points
-      const basePoints = [
-        { x: centerX, y: centerY - 60 },       // forehead center
-        { x: centerX - 30, y: centerY - 20 },   // left eye
-        { x: centerX + 30, y: centerY - 20 },   // right eye
-        { x: centerX, y: centerY + 20 },         // nose tip
-        { x: centerX - 40, y: centerY + 60 },    // left jaw
-        { x: centerX + 40, y: centerY + 60 },    // right jaw
-      ];
+      // 1. Draw Real MediaPipe Landmarks if available
+      if (faceLandmarks && faceLandmarks.length > 0) {
+        // Draw face mesh dots
+        ctx.fillStyle = 'rgba(45, 212, 191, 0.8)';
+        faceLandmarks.forEach((pt) => {
+          ctx.beginPath();
+          ctx.arc(pt.x * canvas.width, pt.y * canvas.height, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+        });
 
-      ctx.fillStyle = 'rgba(45, 212, 191, 0.6)';
-      basePoints.forEach(pt => {
-        const jx = (Math.random() - 0.5) * 2 * jitter;
-        const jy = (Math.random() - 0.5) * 2 * jitter;
+        // Draw gaze vector line from nose tip
+        if (gazeVector) {
+          ctx.strokeStyle = 'rgba(45, 212, 191, 0.8)';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+
+          // Render index 1 represents the nose tip (index 4 in Mediapipe)
+          const nose = faceLandmarks[1] || { x: 0.5, y: 0.5 };
+          const startX = nose.x * canvas.width;
+          const startY = nose.y * canvas.height;
+          ctx.moveTo(startX, startY);
+
+          // Calculate visual direction based on calibration offsets
+          const dx = (gazeVector.x - 0.5) * canvas.width * 1.5;
+          const dy = (gazeVector.y - 0.5) * canvas.height * 1.5;
+
+          ctx.lineTo(startX + dx, startY + dy);
+          ctx.stroke();
+        }
+      } else {
+        // 2. Draw mock fallback landmarks for demo (mock mode)
+        const basePoints = [
+          { x: centerX, y: centerY - 60 },       // forehead center
+          { x: centerX - 30, y: centerY - 20 },   // left eye
+          { x: centerX + 30, y: centerY - 20 },   // right eye
+          { x: centerX, y: centerY + 20 },         // nose tip
+          { x: centerX - 40, y: centerY + 60 },    // left jaw
+          { x: centerX + 40, y: centerY + 60 },    // right jaw
+        ];
+
+        ctx.fillStyle = 'rgba(45, 212, 191, 0.6)';
+        basePoints.forEach(pt => {
+          const jx = (Math.random() - 0.5) * 2 * jitter;
+          const jy = (Math.random() - 0.5) * 2 * jitter;
+          ctx.beginPath();
+          ctx.arc(pt.x + jx, pt.y + jy, 4, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // Gaze direction line
+        ctx.strokeStyle = 'rgba(45, 212, 191, 0.6)';
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(pt.x + jx, pt.y + jy, 4, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      // Gaze direction line
-      ctx.strokeStyle = 'rgba(45, 212, 191, 0.6)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      const startX = centerX;
-      const startY = centerY - 20;
-      ctx.moveTo(startX, startY);
-      
-      const length = 80;
-      const baseAngle = -Math.PI / 2; // straight up
-      const angle = baseAngle + (drift + (Math.random() - 0.5) * jitter * 2) * (Math.PI / 180);
-      
-      const endX = startX + Math.cos(angle) * length;
-      const endY = startY + Math.sin(angle) * length;
-      
-      ctx.lineTo(endX, endY);
-      ctx.stroke();
+        const startX = centerX;
+        const startY = centerY - 20;
+        ctx.moveTo(startX, startY);
+        
+        const length = 80;
+        const baseAngle = -Math.PI / 2; // straight up
+        const angle = baseAngle + (drift + (Math.random() - 0.5) * jitter * 2) * (Math.PI / 180);
+        
+        const endX = startX + Math.cos(angle) * length;
+        const endY = startY + Math.sin(angle) * length;
+        
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+      }
     };
 
     animationFrameId = requestAnimationFrame(render);
@@ -88,7 +122,7 @@ export const VideoPanel: React.FC<VideoPanelProps> = ({ gazeScore, videoRef, cam
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [gazeScore]);
+  }, [gazeScore, faceLandmarks, gazeVector]);
 
   // Resize canvas to match video dimensions
   useEffect(() => {
@@ -135,3 +169,4 @@ export const VideoPanel: React.FC<VideoPanelProps> = ({ gazeScore, videoRef, cam
     </div>
   );
 };
+export type { VideoPanelProps };
