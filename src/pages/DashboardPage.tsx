@@ -43,7 +43,7 @@ export function DashboardPage() {
   useEnvironmentProbe();
 
   // Draw video frames onto offscreen canvas for vision modules
-  const frameSampler = useFrameSampler(videoRef.current, 10, 30000, (frame) => {
+  const frameSampler = useFrameSampler(videoRef, 10, 30000, (frame) => {
     syncDebugger.updateStats({
       latestFrameSampleTime: frame.sessionTimeMs
     });
@@ -100,7 +100,7 @@ export function DashboardPage() {
 
   // Frame sampler and recorder start once camera stream is ready
   useEffect(() => {
-    if (cameraActive && videoRef.current) {
+    if (cameraActive && stream && videoRef.current) {
       frameSampler.start();
       startRecorder();
       audioAnalyser.start();
@@ -111,7 +111,8 @@ export function DashboardPage() {
       stopRecorder();
       audioAnalyser.stop();
     };
-  }, [cameraActive, videoRef, startRecorder, stopRecorder, frameSampler, audioAnalyser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cameraActive, stream]);
 
   const handleEndSession = () => {
     stopMockStream();

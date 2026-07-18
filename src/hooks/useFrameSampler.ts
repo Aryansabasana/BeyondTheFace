@@ -7,7 +7,7 @@ export interface VideoFrameSample {
 }
 
 export function useFrameSampler(
-  videoElement: HTMLVideoElement | null,
+  videoRef: React.RefObject<HTMLVideoElement | null>,
   fps = 10,
   windowMs = 30000,
   onFrame?: (frame: VideoFrameSample) => void
@@ -21,6 +21,7 @@ export function useFrameSampler(
   const droppedFramesRef = useRef(0);
 
   const start = useCallback(() => {
+    const videoElement = videoRef.current;
     if (!videoElement) return;
 
     if (intervalIdRef.current !== null) {
@@ -78,7 +79,7 @@ export function useFrameSampler(
         }
       }
     }, intervalMs);
-  }, [videoElement, fps, windowMs, onFrame]);
+  }, [videoRef, fps, windowMs, onFrame]);
 
   const stop = useCallback(() => {
     if (intervalIdRef.current !== null) {
