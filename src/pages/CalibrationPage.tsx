@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSessionStore } from '../store/sessionStore';
-import { useCameraFeed } from '../hooks/useCameraFeed';
+import { useDisplayCapture } from '../hooks/useDisplayCapture';
 import { useFrameSampler } from '../hooks/useFrameSampler';
 import { gazeDetector } from '../lib/gazeDetector';
 
@@ -9,7 +9,7 @@ export function CalibrationPage() {
   const navigate = useNavigate();
   const setPhase = useSessionStore(state => state.setPhase);
   const setGazeBaseline = useSessionStore(state => state.setGazeBaseline);
-  const { videoRef, isActive, start } = useCameraFeed();
+  const { videoRef, isActive, start } = useDisplayCapture();
   
   const [timeLeft, setTimeLeft] = useState(60);
 

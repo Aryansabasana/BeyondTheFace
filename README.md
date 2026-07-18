@@ -1,5 +1,9 @@
-# React + TypeScript + Vite
+# BeyondTheFace
 
+**Important Setup Note:** 
+BeyondTheFace observes your interview by capturing the shared browser tab or window running your video call. Please ensure your interview platform (Google Meet, Zoom, etc.) is open in a tab before starting, and select that tab when prompted.
+
+---
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:

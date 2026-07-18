@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSessionStore } from '../store/sessionStore';
-import { useCameraFeed } from '../hooks/useCameraFeed';
+import { useDisplayCapture } from '../hooks/useDisplayCapture';
 import { useMockSignalStream } from '../hooks/useMockSignalStream';
 import { useMediaRecorderChunks } from '../hooks/useMediaRecorderChunks';
 import { useFrameSampler } from '../hooks/useFrameSampler';
@@ -29,7 +29,7 @@ export function DashboardPage() {
     error: cameraError, 
     isActive: cameraActive, 
     start: startCamera 
-  } = useCameraFeed();
+  } = useDisplayCapture();
   
   const { 
     start: startMockStream, 

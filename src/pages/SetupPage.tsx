@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSessionStore } from '../store/sessionStore';
-import { useCameraFeed } from '../hooks/useCameraFeed';
+import { useDisplayCapture } from '../hooks/useDisplayCapture';
 import { CameraError } from '../components/ui/CameraError';
 
 export function SetupPage() {
@@ -14,8 +14,9 @@ export function SetupPage() {
   const [sessionId, setSessionId] = useState(() => 
     typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)
   );
-
-  const { videoRef, stream, error, isActive, start } = useCameraFeed();
+  
+  const [showInstruction, setShowInstruction] = useState(false);
+  const { videoRef, stream, error, isActive, start } = useDisplayCapture();
   
   const [audioLevel, setAudioLevel] = useState(0);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -117,7 +118,7 @@ export function SetupPage() {
                 />
                 <div className="absolute top-4 left-4 bg-green-500/20 border border-green-500/50 text-green-400 px-3 py-1 rounded-full text-xs font-medium flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-                  Camera Active
+                  Screen Share Active
                 </div>
                 {/* Audio Level Indicator */}
                 <div className="absolute bottom-4 left-4 right-4 bg-surface-900/80 backdrop-blur rounded-lg p-2 flex items-center gap-3">
@@ -132,20 +133,37 @@ export function SetupPage() {
                   </div>
                 </div>
               </div>
-            ) : (
+            ) : !showInstruction ? (
               <div className="h-[240px] flex flex-col items-center justify-center p-6 text-center">
-                <div className="w-16 h-16 rounded-full bg-surface-800 flex items-center justify-center mb-4">
-                  <svg className="w-8 h-8 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                <div className="w-16 h-16 rounded-full bg-surface-800 flex items-center justify-center mb-4 text-surface-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
                   </svg>
                 </div>
-                <p className="text-surface-300 mb-4">We need access to your camera and microphone to proceed.</p>
+                <p className="text-surface-300 mb-4">We need to observe your interview to monitor integrity.</p>
+                <button
+                  type="button"
+                  onClick={() => setShowInstruction(true)}
+                  className="px-4 py-2 bg-surface-700 hover:bg-surface-600 text-white rounded-lg transition-colors font-medium text-sm"
+                >
+                  Configure Screen Share
+                </button>
+              </div>
+            ) : (
+              <div className="h-[240px] flex flex-col items-center justify-center p-6 text-center bg-surface-900 border border-accent-500/30">
+                <p className="text-surface-200 text-sm mb-4">
+                  You'll be asked to share your interview tab (e.g., Google Meet, Zoom).
+                  <br />
+                  <span className="font-semibold text-accent-400">Please select the specific browser tab running your video call, not your full screen.</span>
+                </p>
                 <button
                   type="button"
                   onClick={start}
-                  className="px-4 py-2 bg-surface-700 hover:bg-surface-600 text-white rounded-lg transition-colors font-medium text-sm"
+                  className="px-6 py-2.5 bg-accent-600 hover:bg-accent-500 text-white rounded-lg transition-colors font-medium text-sm shadow-lg shadow-accent-500/20"
                 >
-                  Enable Camera & Microphone
+                  Open Share Picker
                 </button>
               </div>
             )}

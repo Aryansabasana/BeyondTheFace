@@ -10,7 +10,7 @@ export function CameraError({ error, onRetry }: { error: string; onRetry: () => 
         </svg>
       </div>
       <div>
-        <h3 className="text-lg font-semibold text-surface-900 dark:text-surface-50 mb-1">Camera Issue</h3>
+        <h3 className="text-lg font-semibold text-surface-900 dark:text-surface-50 mb-1">Capture Issue</h3>
         <p className="text-sm text-surface-600 dark:text-surface-300">{error}</p>
       </div>
       <button 
