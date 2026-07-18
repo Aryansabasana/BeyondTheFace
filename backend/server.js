@@ -3,6 +3,11 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
+const dns = require('dns');
+
+// Configure fallback DNS servers (Google DNS) to resolve Atlas querySrv SRV records correctly
+dns.setServers(['8.8.8.8', '8.8.4.4']);
+
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Load environment variables
